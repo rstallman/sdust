@@ -1,0 +1,16 @@
+.text
+24880000
+8d090000
+3529abcd
+1526fffe
+0c000000
+00054021
+
+.symbol
+4	L1
+8	L2
+16	Done
+24	End
+
+.relocation
+0	printf
