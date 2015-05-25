@@ -56,19 +56,12 @@ int is_valid_label(const char* str) {
  */
 int translate_num(long int* output, const char* str, long int lower_bound, 
 		long int upper_bound) {
+
 	if (!str || !output) {
 		return -1;
 	}
 	/* YOUR CODE HERE */
 
-	if(strcmp(str, "0") == 0) {
-		*output = 0;
-		if (lower_bound <= 0) {
-			return 0;
-		}
-		else
-			return -1;
-	}
 
 	char * pEnd;
 	long int res;
@@ -79,7 +72,7 @@ int translate_num(long int* output, const char* str, long int lower_bound,
 		res = strtol(str, &pEnd, 10);
 	}
 
-	if (res == 0 || *pEnd != '\0')    return -1;
+	if (*pEnd != '\0')    return -1;
 
 	*output = res;
 

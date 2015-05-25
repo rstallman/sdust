@@ -7,6 +7,36 @@
 #include "translate.h"
 #include "utils.h"
 
+
+
+static int translate_ulong(unsigned long int* output, const char* str, unsigned long int lower_bound,
+		unsigned long int upper_bound) {
+
+	if (!str || !output) {
+		return -1;
+	}
+
+
+	char * pEnd;
+	unsigned long int res;
+	if(strstr(str, "0x") != NULL || strstr(str, "0X") != NULL) {
+		res = strtoul(str, &pEnd,  16);
+	}
+	else {
+		res = strtoul(str, &pEnd, 10);
+	}
+
+	if (*pEnd != '\0')    return -1;
+
+	*output = res;
+
+
+	if(res >= lower_bound && res <=  upper_bound)
+		return 0;
+	else
+		return -1;
+
+}
 /* Writes instructions during the assembler's first pass to OUTPUT. The case
    for general instructions has already been completed, but you need to write
    code to translate the li and blt pseudoinstructions. Your pseudoinstruction 
@@ -58,7 +88,7 @@ unsigned write_pass_one(FILE* output, const char* name, char** args, int num_arg
 	 
 	 if(imm >= -32769 && imm <= 32768) { // imm fit into 16 bit
 	                                     // signed number
-	      sprintf(tmp, " 0x%lx", imm);
+	      sprintf(tmp, " %ld", imm);
 
 	      char* addiuargs[3] = {args[0], "$zero", tmp};
 	      write_inst_string(output,"addiu", addiuargs, 3);
@@ -66,21 +96,21 @@ unsigned write_pass_one(FILE* output, const char* name, char** args, int num_arg
 	 }
 	 else {
 
-	      int upper16 =  (imm >> 16) & 0xFFFF;
-	      int lower16 =  imm & 0xFFFF;
+		  unsigned long uimm;
+		  err = translate_ulong(&uimm, args[1], 0, 0xFFFFFFFF);
+
+	      int upper16 =  (uimm >> 16) & 0xFFFF;
+	      int lower16 =  uimm & 0xFFFF;
 	    
 	      sprintf(tmp, " 0x%x", upper16);
-
 	      char* luiargs[2] = {"$at", tmp};
 	      write_inst_string(output,"lui", luiargs, 2);
 
 	      sprintf(tmp, " 0x%x", lower16);
-	      char* oriargs[3] = {"$at", "$at", tmp};
+	      char* oriargs[3] = {args[0], "$at", tmp};
 	      write_inst_string(output, "ori",  oriargs, 3);
 
-	      char* adduargs[3] = {args[0], args[0], "$at"};
-	      write_inst_string(output, "addu",  adduargs, 3);
-	      return 3;
+	      return 2;
 	 }
 	 
 	 
@@ -93,7 +123,7 @@ unsigned write_pass_one(FILE* output, const char* name, char** args, int num_arg
 	  char* sltargs[3] = {"$at", args[0], args[1]};
 	  write_inst_string(output, "slt", sltargs, 3);
 	  
-	  char* bneargs[3] = {"$at", "%zero", args[2]};
+	  char* bneargs[3] = {"$at", "$zero", args[2]};
 	  write_inst_string(output, "bne", bneargs, 3);
 	  
 	  return 2;
@@ -142,8 +172,8 @@ int translate_inst(FILE* output, const char* name, char** args, size_t num_args,
     else if (strcmp(name, "sw") == 0)    return write_mem(0x2B, output, args, num_args);
     else if (strcmp(name, "beq") == 0)   return write_branch(0x04, output, args, num_args, addr, symtbl);
     else if (strcmp(name, "bne") == 0)   return write_branch(0x05, output, args, num_args, addr, symtbl);
-    else if (strcmp(name, "j") == 0)     return write_jump(0x02, output, args, num_args, 0, reltbl);    // label always  need relocation, set addr to be 0
-    else if (strcmp(name, "jal") == 0)   return write_jump(0x03, output, args, num_args, 0, reltbl);    //label always need relocation, set addr to be 0
+    else if (strcmp(name, "j") == 0)     return write_jump(0x02, output, args, num_args, addr, reltbl);    // label always  need relocation, set addr to be 0
+    else if (strcmp(name, "jal") == 0)   return write_jump(0x03, output, args, num_args, addr, reltbl);    //label always need relocation, set addr to be 0
     
     /* YOUR CODE HERE */
     else                                 return -1;
@@ -160,12 +190,12 @@ int write_jump(uint8_t opcode, FILE* output, char** args, size_t num_args,
      
      int64_t labelAddress =  get_addr_for_symbol(reltbl, args[0]);
 
-     if(labelAddress == -1)   add_to_table(reltbl, args[0], 0);
+     if(labelAddress == -1)   add_to_table(reltbl, args[0], addr);
      
      
      uint32_t instruction = 0;
     
-     instruction |= ((addr >> 2) & 0x3FFFFFF);  // addr is target address
+
      instruction |= (opcode << 26);             // opcode
      
      write_inst_hex(output, instruction);
